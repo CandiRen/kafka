@@ -1,0 +1,284 @@
+---
+all:
+  vars:
+    #### Setting for connection to remote hosts ####
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_password: '1Kilolagi'
+    ansible_become: true
+    ansible_become_password: '1Kilolagi'
+
+    # deployment_strategy: rolling
+
+    #### Proxy configuration ####
+    # proxy_env:
+    #   http_proxy: http://isatproxy.ioh.co.id:8080
+
+    #### Cluster names ####
+    kafka_broker_cluster_name: confluent_broker
+    schema_registry_cluster_name: confluent_schema_registry
+    kafka_connect_cluster_name: confluent_kafka_connect
+    ksql_cluster_name: confluent_ksql
+
+    #### Credential encription at properties file ####
+    secrets_protection_enabled: false
+
+    #### Install Java ####
+    install_java: true
+
+    #### TLS Configuration ####
+    ssl_enabled: true
+    ssl_custom_certs: true
+    ssl_ca_cert_filepath: '/root/cp-inventory/ssl/snakeoil-ca-1.crt'
+    ssl_signed_cert_filepath: '/root/cp-inventory/ssl/{{inventory_hostname}}-ca1-signed.crt'
+    ssl_key_filepath: '/root/cp-inventory/ssl/{{inventory_hostname}}.key'
+    regenerate_keystore_and_truststore: true
+
+    #### SASL Authentication Configuration ####
+    sasl_protocol: plain
+
+    #### Kerberos Configuration ####
+    # kerberos_configure: false
+    # kerberos:
+    #   realm: OFFICE.CORP.INDOSAT.COM
+    #   kdc_hostname: poaddc02w.office.corp.indosat.com
+    #   admin_hostname: poaddc02w.office.corp.indosat.com
+
+    #### Authorization Configuration ####
+    rbac_enabled: true
+
+    create_mds_certs: false
+    token_services_public_pem_file: '/root/cp-inventory/mds_token/public.pem'
+    token_services_private_pem_file: '/root/cp-inventory/mds_token/tokenKeypair.pem'
+
+    #### LDAP User for each confluent services ####
+    mds_super_user: mds
+    mds_super_user_password: password
+    kafka_controller_ldap_user: kafka
+    kafka_controller_ldap_password: password
+    kafka_broker_ldap_user: kafka
+    kafka_broker_ldap_password: password
+    schema_registry_ldap_user: schemaregistry
+    schema_registry_ldap_password: password
+    kafka_connect_ldap_user: connect
+    kafka_connect_ldap_password: password
+    ksql_ldap_user: ksql
+    ksql_ldap_password: password
+    kafka_rest_ldap_user: restproxy
+    kafka_rest_ldap_password: password
+    control_center_ldap_user: controlcenter
+    control_center_ldap_password: password
+
+    rbac_component_additional_system_admins:
+      - User:admin
+
+    sasl_plain_users:
+      admin:
+        principal: 'admin'
+        password: 'password'
+      ksql:
+        principal: 'admin'
+        password: 'password'
+
+    #### Prometheus JMX exporter ####
+    jmxexporter_enabled: false
+
+    kafka_controller_custom_properties:
+      log.dirs: '/data_kraft/kraft'
+
+#     zookeeper_client_authentication_type: digest
+#     zookeeper_quorum_authentication_type: digest
+
+# zookeeper:
+#   vars:
+#     zookeeper_log_dir: /data_kraft/log/zookeeper
+#     zookeeper_custom_properties:
+#       dataDir: /data/zookeeper/data
+#       datalogDir: /data/zookeeper/data-log
+
+#       4lw.commands.whitelist: "*"
+#       ticktime: 2000
+#       requireClientAuthScheme: sasl
+
+#     zookeeper_service_environment_overrides:
+#       JMX_PORT: "7199"
+#       EXTRA_ARGS: "-Djava.rmi.server.hostname={{inventory_hostname}} -Dcom.sun.management.jmxremote.rmi.port=7199"
+
+#   hosts:
+#     node1.alldataint.com:
+#       zookeeper_id: 1
+#     node2.alldataint.com:
+#       zookeeper_id: 2
+#     node3.alldataint.com:
+#       zookeeper_id: 3
+
+kafka_controller:
+  vars:
+    kafka_controller_log_dir: /data_kraft/log/kraft
+    kafka_controller_custom_properties:
+      log.dirs: /data_kraft/kraft
+      confluent.support.metrics.enable: false
+
+      #### ldap authentication callback ####
+      listener.name.broker.plain.sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="password";
+      listener.name.broker.plain.sasl.server.callback.handler.class: io.confluent.security.auth.provider.ldap.LdapAuthenticateCallbackHandler
+      listener.name.controller.plain.sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="password";
+      listener.name.controller.plain.sasl.server.callback.handler.class: io.confluent.security.auth.provider.ldap.LdapAuthenticateCallbackHandler
+
+      ## LDAP Configuration
+      ldap.java.naming.factory.initial: com.sun.jndi.ldap.LdapCtxFactory
+      ldap.com.sun.jndi.ldap.read.timeout: 60000
+      ldap.refresh.interval.ms: 1800000
+      ldap.java.naming.provider.url: ldap://ldap.alldataint.com:389
+      ldap.java.naming.security.authentication: simple
+      ldap.java.naming.security.principal: cn=service,dc=alldataint,dc=com
+      ldap.java.naming.security.credentials: password
+
+      ldap.user.search.base: ou=users,dc=alldataint,dc=com
+      ldap.user.object.class: inetOrgPerson
+      ldap.user.name.attribute: uid
+
+      ldap.search.mode: GROUPS
+      ldap.group.search.base: ou=groups,dc=alldataint,dc=com
+      ldap.group.object.class: groupOfNames
+      ldap.group.name.attribute: cn
+      ldap.group.member.attribute: member
+      ldap.group.member.attribute.pattern: cn=(.*),ou=users,dc=alldataint,dc=com
+  hosts:
+    kraft1.alldataint.com:
+      node_id: 9991
+    kraft2.alldataint.com:
+      node_id: 9992
+    kraft3.alldataint.com:
+      node_id: 9993
+
+kafka_broker:
+  vars:
+    kafka_broker_log_dir: /data_kraft/log/kafka
+    kafka_broker_custom_listeners:
+      broker:
+        name: BROKER
+        port: 9091
+      internal:
+        name: INTERNAL
+        port: 9092
+      client_listener:
+        name: CLIENT
+        port: 9094
+        sasl_protocol: plain
+
+    kafka_broker_custom_properties:
+      log.dirs: /data_kraft/kafka
+
+      # topic default configuration
+      num.partitions: 1
+      default.replication.factor: 3
+      min.insync.replicas: 2
+      log.retention.ms: 172800000
+      confluent.security.event.logger.exporter.kafka.topic.retention.ms: 172800000
+      confluent.security.event.logger.exporter.kafka.topic.retention.bytes: 107374182400
+
+      # thread configuration
+      num.io.threads: 2
+      num.network.threads: 1
+      num.recovery.threads.per.data.dir: 1
+
+      confluent.support.metrics.enable: false
+
+      #### Self balancing cluster config ####
+      confluent.balancer.enable: true
+      confluent.balancer.heal.uneven.load.trigger: ANY_UNEVEN_LOAD
+
+      #### ldap authentication callback ####
+      listener.name.client.plain.sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="password";
+      listener.name.client.plain.sasl.server.callback.handler.class: io.confluent.security.auth.provider.ldap.LdapAuthenticateCallbackHandler
+      listener.name.broker.plain.sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="password";
+      listener.name.broker.plain.sasl.server.callback.handler.class: io.confluent.security.auth.provider.ldap.LdapAuthenticateCallbackHandler
+
+      ## LDAP Configuration
+      ldap.java.naming.factory.initial: com.sun.jndi.ldap.LdapCtxFactory
+      ldap.com.sun.jndi.ldap.read.timeout: 60000
+      ldap.refresh.interval.ms: 1800000
+      ldap.java.naming.provider.url: ldap://ldap.alldataint.com:389
+      ldap.java.naming.security.authentication: simple
+      ldap.java.naming.security.principal: cn=service,dc=alldataint,dc=com
+      ldap.java.naming.security.credentials: password
+
+      ldap.user.search.base: ou=users,dc=alldataint,dc=com
+      ldap.user.object.class: inetOrgPerson
+      ldap.user.name.attribute: uid
+
+      ldap.search.mode: GROUPS
+      ldap.group.search.base: ou=groups,dc=alldataint,dc=com
+      ldap.group.object.class: groupOfNames
+      ldap.group.name.attribute: cn
+      ldap.group.member.attribute: member
+      ldap.group.member.attribute.pattern: cn=(.*),ou=users,dc=alldataint,dc=com
+
+      #### cluster linking
+      password.encoder.secret: '1Kilolagi'
+
+    kafka_broker_service_environment_overrides:
+      JMX_PORT: '7299'
+      EXTRA_ARGS: '-Djava.rmi.server.hostname={{inventory_hostname}} -Dcom.sun.management.jmxremote.rmi.port=7299'
+
+  hosts:
+    node1.alldataint.com:
+      broker_id: 1
+    node2.alldataint.com:
+      broker_id: 2
+    node3.alldataint.com:
+      broker_id: 3
+
+schema_registry:
+  vars:
+    schema_registry_log_dir: /data_kraft/log/schema-registry
+    schema_registry_service_environment_overrides:
+      JMX_PORT: '7399'
+      EXTRA_ARGS: '-Djava.rmi.server.hostname={{inventory_hostname}} -Dcom.sun.management.jmxremote.rmi.port=7399'
+  hosts:
+    node1.alldataint.com:
+
+ksql:
+  vars:
+    ksql_log_dir: /data_kraft/log/kafka-ksql
+    ksql_rocksdb_path: /data_kraft/rocksdb/ksql
+    ksql_log_streaming_enabled: true
+
+    ksql_custom_properties:
+      confluent.support.metrics.enable: false
+      ksql.streams.state.dir: /data_kraft/ksql/kafka-streams
+
+      ksql.logging.processing.topic.auto.create: true
+      ksql.logging.processing.stream.auto.create: true
+      ksql.logging.processing.rows.include: true
+
+    ksql_service_environment_overrides:
+      JMX_PORT: '7499'
+      EXTRA_ARGS: '-Djava.rmi.server.hostname={{inventory_hostname}} -Dcom.sun.management.jmxremote.rmi.port=7499'
+  hosts:
+    node2.alldataint.com:
+
+kafka_connect:
+  vars:
+    kafka_connect_log_dir: /data_kraft/log/kafka-connect
+    kafka_connect_plugins_path:
+      - /usr/share/java
+      - /usr/share/confluent-hub-components
+    kafka_connect_service_environment_overrides:
+      JMX_PORT: '7599'
+      EXTRA_ARGS: '-Djava.rmi.server.hostname={{inventory_hostname}} -Dcom.sun.management.jmxremote.rmi.port=7599'
+  hosts:
+    node3.alldataint.com:
+
+control_center:
+  vars:
+    control_center_log_dir: /data_kraft/log/control-center
+    control_center_rocksdb_path: /data_kraft/rocksdb/control-center
+    control_center_custom_properties:
+      confluent.controlcenter.data.dir: /data_kraft/control-center/data
+      confluent.controlcenter.id: 1
+
+    control_center_custom_java_args: '-Dio.netty.native.workdir=/data/netty/ -Dio.netty.tmpdir=/data/netty'
+  hosts:
+    node1.alldataint.com:
