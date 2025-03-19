@@ -1,0 +1,37 @@
+all:
+  vars:
+    #### Setting for connection to remote hosts ####
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_become: true
+
+    #### Cluster names ####
+    kafka_broker_cluster_name: confluent_broker
+    #### Prometheus JMX exporter ####
+    jmxexporter_enabled: false
+    kafka_controller_custom_properties:
+      log.dirs: '/data/kraft'
+
+kafka_controller:
+  vars:
+    kafka_controller_log_dir: /data/log/kraft
+    kafka_controller_custom_properties:
+      log.dirs: /data/kraft
+      confluent.support.metrics.enable: false
+  hosts:
+    172.28.136.86:
+      node_id: 9991
+
+kafka_broker:
+  vars:
+    kafka_broker_log_dir: /data/log/kafka
+    kafka_broker_custom_properties:
+      log.dirs: /data/kafka
+      # topic default configuration
+      num.partitions: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      confluent.support.metrics.enable: false
+  hosts:
+    172.28.136.86:
+      broker_id: 1
